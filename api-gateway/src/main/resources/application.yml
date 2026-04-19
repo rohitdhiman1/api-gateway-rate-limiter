@@ -1,0 +1,70 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: api-gateway
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/gateway_db}
+    username: ${DB_USERNAME:gateway}
+    password: ${DB_PASSWORD:gateway_secret}
+    hikari:
+      maximum-pool-size: 10
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+gateway:
+  jwt:
+    secret: ${JWT_SECRET:please-change-this-secret-in-production}
+    expiry: PT1H
+  routes:
+    user-service-url: ${GATEWAY_ROUTES_USER_SERVICE_URL}
+    pricing-service-url: ${GATEWAY_ROUTES_PRICING_SERVICE_URL}
+    notification-service-url: ${GATEWAY_ROUTES_NOTIFICATION_SERVICE_URL}
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      downstreamService:
+        register-health-indicator: true
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,circuitbreakers
+  endpoint:
+    health:
+      show-details: always
+  health:
+    circuitbreakers:
+      enabled: true
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui
+  api-docs:
+    path: /v3/api-docs
+
+logging:
+  pattern:
+    console: "%d{ISO8601} [%thread] [%X{correlationId}] %-5level %logger{36} - %msg%n"
+  level:
+    com.gateway: DEBUG
+    org.springframework.web: INFO
