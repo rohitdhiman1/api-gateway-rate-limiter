@@ -5,6 +5,7 @@ spring:
 
 gateway:
   jwt:
+    # TEST-ONLY secret — never use this value outside of tests
     secret: test-secret-key-that-is-at-least-32-bytes-long-for-hmac
     expiry: PT1H
   routes:
