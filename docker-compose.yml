@@ -1,0 +1,84 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: gateway_db
+      POSTGRES_USER: gateway
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gateway -d gateway_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/gateway_db
+      SPRING_DATASOURCE_USERNAME: gateway
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET}
+      GATEWAY_ROUTES_USER_SERVICE_URL: http://user-service:8081
+      GATEWAY_ROUTES_PRICING_SERVICE_URL: http://pricing-service:8082
+      GATEWAY_ROUTES_NOTIFICATION_SERVICE_URL: http://notification-service:8083
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      user-service:
+        condition: service_started
+      pricing-service:
+        condition: service_started
+      notification-service:
+        condition: service_started
+
+  user-service:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    environment:
+      SERVER_PORT: 8081
+
+  pricing-service:
+    build:
+      context: ./pricing-service
+      dockerfile: Dockerfile
+    ports:
+      - "8082:8082"
+    environment:
+      SERVER_PORT: 8082
+
+  notification-service:
+    build:
+      context: ./notification-service
+      dockerfile: Dockerfile
+    ports:
+      - "8083:8083"
+    environment:
+      SERVER_PORT: 8083
+
+volumes:
+  postgres_data:
